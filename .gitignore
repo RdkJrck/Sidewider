@@ -1,0 +1,23 @@
+# Build output
+build/
+
+# Log files
+build_log.txt
+flash_log.txt
+
+# Large binary downloads (STM32CubeProgrammer installer)
+*.zip
+
+# Backup clangd config (redundant duplicate)
+.clangd_hidden_message
+
+# IDE / editor temp files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# OS cruft
+.DS_Store
+Thumbs.db

@@ -1,0 +1,10 @@
+CompileFlags:
+  Add:
+    - -Iinclude
+    - -ISTM32CubeG4/Drivers/STM32G4xx_HAL_Driver/Inc
+    - -ISTM32CubeG4/Drivers/CMSIS/Device/ST/STM32G4xx/Include
+    - -ISTM32CubeG4/Drivers/CMSIS/Include
+    - -ISTM32CubeG4/Middlewares/ST/STM32_USB_Device_Library/Core/Inc
+    - -ISTM32CubeG4/Middlewares/ST/STM32_USB_Device_Library/Class/HID/Inc
+    - -DSTM32G474xx
+    - --target=arm-none-eabi
