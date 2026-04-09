@@ -61,8 +61,6 @@ void HAL_PCD_MspDeInit(PCD_HandleTypeDef* pcdHandle)
   */
 void USB_LP_IRQHandler(void)
 {
-  /* Diagnostic: Toggle LED when ANY USB interrupt occurs! */
-  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
   HAL_PCD_IRQHandler(&hpcd_USB_FS);
 }
 

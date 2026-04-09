@@ -109,7 +109,10 @@ $(BUILD_DIR):
 clean:
 	rm -rf $(BUILD_DIR)
 
-.PHONY: all clean debug
+.PHONY: all clean debug flash
+
+flash: all
+	STM32_Programmer_CLI -c port=SWD -w $(BUILD_DIR)/$(PROJECT_NAME).elf 0x08000000 -v -rst
 
 debug:
 	@echo "SDK_PATH = $(SDK_PATH)"

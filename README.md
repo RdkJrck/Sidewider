@@ -189,25 +189,20 @@ make debug   # print resolved Makefile variables and src listing
 
 ## Flashing
 
-### Option A — st-flash (open source)
+The default flash handler is **STM32CubeProgrammer**. Ensure `STM32_Programmer_CLI` is in your system `$PATH`.
+
+You can simply flash and reset the device automatically by running:
 
 ```bash
-# Build a binary first
-arm-none-eabi-objcopy -O binary build/main.elf build/main.bin
-st-flash write build/main.bin 0x08000000
+make flash
 ```
 
-### Option B — STM32CubeProgrammer (official GUI / CLI)
+Alternatively, to run the process manually:
 
 ```bash
-STM32_Programmer_CLI -c port=SWD -w build/main.elf -rst
-```
-
-### Option C — OpenOCD (NUCLEO on-board ST-LINK)
-
-```bash
-openocd -f interface/stlink.cfg -f target/stm32g4x.cfg \
-  -c "program build/main.elf verify reset exit"
+make clean
+make
+STM32_Programmer_CLI -c port=SWD -w build/main.elf 0x08000000 -v -rst
 ```
 
 ---

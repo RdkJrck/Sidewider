@@ -22,21 +22,22 @@ int main(void)
   /* Initialize GPIO early for status signaling */
   MX_GPIO_Init();
 
-  /* Power on LED to signal life - 3 obvious blinks */
+  /* Power on LED to signal life - 3 obvious blinks (at HSI 16MHz before clock switch) */
   for(int j=0; j<3; j++) {
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-    for(volatile int i=0; i<2000000; i++); 
+    HAL_Delay(300);
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-    for(volatile int i=0; i<2000000; i++); 
+    HAL_Delay(300);
   }
 
   /* Configure the system clock */
   SystemClock_Config();
   
-  /* Checkpoint 1: Clock configured */
+  /* Checkpoint 1: Clock configured — 1 long blink (clearly visible) */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-  for(volatile int i=0; i<200000; i++); 
+  HAL_Delay(500);
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+  HAL_Delay(200);
 
   /* Initialize USB Stack */
   MX_USB_Device_Init();
@@ -44,10 +45,13 @@ int main(void)
   /* Force DP pull-up to notify PC manually */
   USB->BCDR |= (1U << 15U);
   
-  /* Checkpoint 2: USB Initialized */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-  for(volatile int i=0; i<200000; i++); 
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+  /* Checkpoint 2: USB Initialized — 2 fast blinks */
+  for(int j=0; j<2; j++) {
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+    HAL_Delay(100);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+    HAL_Delay(100);
+  }
 
   /* Initialize SideWinder Driver */
   SideWinder_Init();
@@ -83,6 +87,13 @@ int main(void)
       }
       
       lastReport = HAL_GetTick();
+    }
+
+    /* Heartbeat: slow blink every 1s to confirm main loop is alive */
+    static uint32_t lastHeartbeat = 0;
+    if (HAL_GetTick() - lastHeartbeat >= 1000) {
+      HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+      lastHeartbeat = HAL_GetTick();
     }
   }
 }
