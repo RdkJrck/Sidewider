@@ -49,15 +49,17 @@ A bare-metal STM32G474RE firmware that reads data from a **Microsoft SideWinder 
 
 The SideWinder communicates over a 3-wire synchronous serial bus exposed on the gameport connector. Connect it to the Nucleo's **CN10 Arduino header**:
 
-| SideWinder Signal | Gameport Pin | Nucleo Pin | STM32 GPIO |
-|-------------------|-------------|------------|------------|
-| DATA              | Pin 3        | A0 (CN8)   | PC0        |
-| CLOCK             | Pin 6        | A1 (CN8)   | PC1        |
-| STROBE (Output)   | Pin 7        | A2 (CN8)   | PC2        |
-| GND               | Pin 4/12     | GND        | GND        |
-| +5V               | Pin 1        | +5V        | —          |
+| SideWinder Signal | Gameport Pin | Nucleo Header | STM32 GPIO |
+|-------------------|-------------|---------------|------------|
+| CLOCK             | Pin 2       | A0 (CN8)      | PA0        |
+| TRIGGER (Output)  | Pin 3       | D13 (CN9)     | PA5 (LED)  |
+| DATA 0            | Pin 7       | A1 (CN8)      | PA1        |
+| DATA 1            | Pin 10      | A3 (CN8)      | PB0        |
+| DATA 2            | Pin 14      | A4 (CN8)      | PC1        |
+| GND               | Pin 4/12    | GND           | GND        |
+| +5V               | Pin 1       | +5V           | —          |
 
-> **Note:** PA11 / PA12 are reserved for USB (DM / DP) and must not be used for anything else.
+> **Note:** The STM32G474RE has a different internal routing for `A0-A4` compared to a standard Arduino Uno. Do not trust generic pinout diagrams; use the exact GPIOs listed above. PA11 / PA12 are reserved for USB (DM / DP).
 
 ---
 
@@ -103,11 +105,23 @@ The Microsoft SideWinder FFB Wheel uses a **synchronous serial** protocol over t
 
 | Bits | Field    | Width | Range  | Notes                    |
 |------|----------|-------|--------|--------------------------|
-| 0–9  | Steering | 10 b  | 0–1023 | LSB first                |
-| 10–15| Brake    | 6 b   | 0–63   | Left pedal               |
-| 16–21| Gas      | 6 b   | 0–63   | Right pedal              |
+| 0–9  | Steering | 10 b  | 0–1023 | LSB first (512 is center)|
+| 10–15| Brake    | 6 b   | 0–63   | Right Pedal (63=idle, 0=pressed) |
+| 16–21| Gas      | 6 b   | 0–63   | Left Pedal (63=idle, 0=pressed)  |
 | 22–29| Buttons  | 8 b   | bitmask| Buttons 1–8              |
-| 30–32| Padding/Parity | 3 b | — | Not yet fully decoded  |
+| 30–32| Padding/Parity | 3 b | — | Parity validation        |
+
+### Button Bitmask (Bits 22-29)
+| Button | Bit | Hex |
+|---|---|---|
+| A | 0 | `0x01` |
+| B | 1 | `0x02` |
+| C | 2 | `0x04` |
+| Right Paddle | 3 | `0x08` |
+| X | 4 | `0x10` |
+| Y / V | 5 | `0x20` |
+| Z | 6 | `0x40` |
+| Left Paddle | 7 | `0x80` |
 
 > **Implementation note:** Interrupt masking was removed from `SideWinder_Read()` because it would block the USB interrupt handler and cause USB enumeration failures. The software timeout loops act as the guard against a missing/desynchronised wheel.
 
@@ -253,21 +267,40 @@ Sidewider/
 
 ---
 
+## Testing on Linux
+
+Since the Nucleo enumerates as a standard USB HID Joystick, no custom drivers are required. You can test the inputs natively using standard Linux utilities.
+
+1. **Verify USB Enumeration:**
+   ```bash
+   lsusb | grep 0483
+   # Expected output: ID 0483:5710 STMicroelectronics Joystick in FS Mode
+   ```
+
+2. **Test Raw Inputs (Arch Linux example):**
+   Install the joystick utilities:
+   ```bash
+   sudo pacman -S evtest joyutils
+   ```
+   Run `evtest` and select the device corresponding to the `STMicroelectronics Joystick`:
+   ```bash
+   evtest
+   ```
+   You will see a live stream of raw kernel input events as you turn the wheel, press the pedals, and click the buttons.
+
+---
+
 ## Known Issues & TODO
 
 ### Known Issues
-- `delay_us()` is a blocking spin-loop calibrated for 170 MHz — not cycle-accurate. Could drift if optimisation level increases.
-- USB LED toggle in `USB_LP_IRQHandler` is diagnostic noise; should be removed before final firmware.
 - `USBD_HID_REPORT_DESC_SIZE` in `usbd_hid_gamepad.h` is hardcoded as `74` — should use `sizeof(HID_GAMEPAD_ReportDesc)` to avoid silent descriptor mismatch.
-- `wint_t` workaround in `usbd_conf.h` is a hack for a missing newlib header; could be replaced with a proper sysroot.
 
 ### Roadmap
-- [ ] **Phase 4:** Implement HID PID (Physical Interface Device) for Force Feedback output back to wheel motor
+- [ ] **Phase 4:** Implement HID PID (Physical Interface Device) for Force Feedback via MIDI (Gameport Pin 15 / `MIDI_TX`). Auto-centering currently works natively out of the box.
 - [ ] Add parity/checksum validation on the 33-bit SideWinder packet
-- [ ] Replace spin-loop `delay_us()` with DWT cycle counter for accuracy
-- [ ] Add a `make flash` target to the Makefile
-- [ ] Test with more PC games (currently validated with `hid-tools` / `evtest` on Linux)
-- [ ] Optional: add UART debug output via PA2 (LPUART1 on NUCLEO)
+- [x] Replace spin-loop `delay_us()` with DWT cycle counter for microsecond protocol accuracy
+- [x] Add a `make flash` target to the Makefile
+- [x] Add UART debug output via PA2 (LPUART1 on NUCLEO) with interactive diagnostic commands
 
 ---
 

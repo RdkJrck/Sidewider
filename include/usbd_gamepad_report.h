@@ -3,6 +3,15 @@
 
 #include <stdint.h>
 
+/* Must match the size of Gamepad_Report_t (7 bytes, padded to 8) */
+#define HID_EPIN_ADDR   0x81U
+#define HID_EPIN_SIZE   0x08U
+#define HID_FS_BINTERVAL 0x0AU
+#define USB_HID_CONFIG_DESC_SIZ  34U
+#define USB_HID_DESC_SIZ         9U
+#define HID_REPORT_DESC          0x22U
+#define HID_DESCRIPTOR_TYPE      0x21U
+
 /* HID Gamepad Report Structure */
 typedef struct __attribute__((packed))
 {

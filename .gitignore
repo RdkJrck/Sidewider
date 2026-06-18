@@ -8,6 +8,9 @@ flash_log.txt
 # Large binary downloads (STM32CubeProgrammer installer)
 *.zip
 
+# Datasheets / reference manuals (large PDFs, not source)
+docs/*.pdf
+
 # Backup clangd config (redundant duplicate)
 .clangd_hidden_message
 

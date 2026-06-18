@@ -1,5 +1,6 @@
 #include "stm32g4xx_hal.h"
 #include "usbd_core.h"
+#include <stdio.h>
 
 /* Peripheral Control Driver (PCD) Handle */
 PCD_HandleTypeDef hpcd_USB_FS;
@@ -24,8 +25,9 @@ void HAL_PCD_MspInit(PCD_HandleTypeDef* pcdHandle)
     __HAL_RCC_SYSCFG_CLK_ENABLE();
     __HAL_RCC_PWR_CLK_ENABLE();
     
-    /* Enable VDDUSB power supply for USB peripheral (Bit 10 in CR2 - USV) */
-    SET_BIT(PWR->CR2, (1UL << 10U));
+    /* Enable VDDUSB power domain — required for PA11/PA12 USB pins (RM0440 §6.4.4).
+     * PWR_CR2 bit 10 = USV (USB Supply Valid). CMSIS header has no macro for it. */
+    SET_BIT(PWR->CR2, (1UL << 10U));   /* USV bit */
     
     /**USB GPIO Configuration
     PA11     ------> USB_DM
@@ -40,8 +42,9 @@ void HAL_PCD_MspInit(PCD_HandleTypeDef* pcdHandle)
     /* Peripheral clock enable */
     __HAL_RCC_USB_CLK_ENABLE();
 
-    /* Peripheral interrupt init */
-    HAL_NVIC_SetPriority(USB_LP_IRQn, 0, 0);
+    /* USB IRQ must be higher priority than SysTick (priority 0) to guarantee
+     * the GET_DESCRIPTOR response window is never preempted. */
+    HAL_NVIC_SetPriority(USB_LP_IRQn, 1, 0);
     HAL_NVIC_EnableIRQ(USB_LP_IRQn);
   }
 }
@@ -76,21 +79,31 @@ USBD_StatusTypeDef USBD_LL_Init(USBD_HandleTypeDef *pdev)
   hpcd_USB_FS.Init.low_power_enable = DISABLE;
   hpcd_USB_FS.Init.lpm_enable = DISABLE;
   hpcd_USB_FS.Init.battery_charging_enable = DISABLE;
-  
+
   if (HAL_PCD_Init(&hpcd_USB_FS) != HAL_OK)
   {
     return USBD_FAIL;
   }
 
+  /* Link the PCD handle to the USB device handle so IRQ callbacks can reach the stack */
+  hpcd_USB_FS.pData = pdev;
+  pdev->pData = &hpcd_USB_FS;
+
   /* Allocate memory in dedicated USB SRAM (G4 has 1024 bytes)
      BTABLE for 8 endpoints takes 8*8 = 64 bytes (0x40).
      Buffer addresses MUST be >= 0x40 to avoid memory corruption! */
-  HAL_PCDEx_PMAConfig(&hpcd_USB_FS, 0x00, PCD_SNG_BUF, 0x40);
-  HAL_PCDEx_PMAConfig(&hpcd_USB_FS, 0x80, PCD_SNG_BUF, 0x80);
-  HAL_PCDEx_PMAConfig(&hpcd_USB_FS, 0x81, PCD_SNG_BUF, 0xC0); /* HID IN endpoint */
-  
+  HAL_PCDEx_PMAConfig(&hpcd_USB_FS, 0x00, PCD_SNG_BUF, 0x40); /* EP0 OUT: 64 bytes @ 0x40 */
+  HAL_PCDEx_PMAConfig(&hpcd_USB_FS, 0x80, PCD_SNG_BUF, 0x80); /* EP0 IN:  64 bytes @ 0x80 */
+  HAL_PCDEx_PMAConfig(&hpcd_USB_FS, 0x81, PCD_SNG_BUF, 0xC0); /* HID IN:   8 bytes @ 0xC0 */
+
+  /* Power note: device is powered via ST-Link, not USB VBUS.
+   * DPPU will be activated by HAL_PCD_Start → USB_DevConnect at the correct
+   * moment (after interrupts are enabled). Do NOT set it here prematurely. */
+  USB->BCDR &= ~USB_BCDR_BCDEN;  /* disable battery charging detection */
+
   return USBD_OK;
 }
+
 
 USBD_StatusTypeDef USBD_LL_DeInit(USBD_HandleTypeDef *pdev)
 {
@@ -179,6 +192,7 @@ uint32_t USBD_LL_GetRxDataSize(USBD_HandleTypeDef *pdev, uint8_t ep_addr)
 /* PCD Callback functions */
 void HAL_PCD_SetupStageCallback(PCD_HandleTypeDef *hpcd)
 {
+  printf("USB: Setup\r\n");
   USBD_LL_SetupStage((USBD_HandleTypeDef*)hpcd->pData, (uint8_t *)hpcd->Setup);
 }
 
@@ -199,6 +213,7 @@ void HAL_PCD_SOFCallback(PCD_HandleTypeDef *hpcd)
 
 void HAL_PCD_ResetCallback(PCD_HandleTypeDef *hpcd)
 {
+  printf("USB: Reset\r\n");
   USBD_SpeedTypeDef speed = USBD_SPEED_FULL;
   if ( hpcd->Init.speed == PCD_SPEED_FULL)
   {
@@ -210,6 +225,7 @@ void HAL_PCD_ResetCallback(PCD_HandleTypeDef *hpcd)
 
 void HAL_PCD_SuspendCallback(PCD_HandleTypeDef *hpcd)
 {
+  printf("USB: Suspend\r\n");
   USBD_LL_Suspend((USBD_HandleTypeDef*)hpcd->pData);
 }
 

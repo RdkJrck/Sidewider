@@ -23,6 +23,8 @@ $(SDK_PATH)/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_pwr.c \
 $(SDK_PATH)/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_pwr_ex.c \
 $(SDK_PATH)/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_rcc.c \
 $(SDK_PATH)/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_rcc_ex.c \
+$(SDK_PATH)/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_uart.c \
+$(SDK_PATH)/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_uart_ex.c \
 $(SDK_PATH)/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_flash.c \
 $(SDK_PATH)/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_flash_ex.c \
 $(SDK_PATH)/Drivers/STM32G4xx_HAL_Driver/Src/stm32g4xx_hal_gpio.c \
@@ -81,7 +83,7 @@ FLOAT-ABI = -mfloat-abi=hard
 MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI)
 
 # Flagy
-CFLAGS = $(MCU) $(C_INCLUDES) -Inewlib_include -I$(SDK_PATH)/Drivers/CMSIS/Include -O0 -Wall -fdata-sections -ffunction-sections -g -gdwarf-2 -DSTM32G474xx 
+CFLAGS = $(MCU) $(C_INCLUDES) -I$(SDK_PATH)/Drivers/CMSIS/Include -O0 -Wall -fdata-sections -ffunction-sections -g -gdwarf-2 -DSTM32G474xx 
 
 # Linker script
 LDSCRIPT = include/stm32g474xx_flash.ld
@@ -112,7 +114,7 @@ clean:
 .PHONY: all clean debug flash
 
 flash: all
-	STM32_Programmer_CLI -c port=SWD -w $(BUILD_DIR)/$(PROJECT_NAME).elf 0x08000000 -v -rst
+	$(HOME)/STMicroelectronics/STM32Cube/STM32CubeProgrammer/bin/STM32_Programmer_CLI -c port=SWD -w $(BUILD_DIR)/$(PROJECT_NAME).elf 0x08000000 -v -rst
 
 debug:
 	@echo "SDK_PATH = $(SDK_PATH)"
